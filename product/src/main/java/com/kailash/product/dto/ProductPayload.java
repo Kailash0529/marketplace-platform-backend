@@ -11,4 +11,5 @@ public class ProductPayload {
     private String shortDescription;
     private Double price;
     private Instant createdAt;
+    private Integer stock;
 }

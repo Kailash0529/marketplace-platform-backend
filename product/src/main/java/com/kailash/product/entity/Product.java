@@ -22,14 +22,16 @@ public class Product implements Serializable {
     private String shortDescription;
     private Double price;
     private Instant createdAt;
+    private Integer stock;
 
-    public static Product of(String sku, String name, String shortDescription, Double price) {
+    public static Product of(String sku, String name, String shortDescription, Double price,Integer stock) {
         return Product.builder()
                 .sku(sku)
                 .name(name)
                 .shortDescription(shortDescription)
                 .price(price)
                 .createdAt(Instant.now())
+                .stock(stock)
                 .build();
     }
 }

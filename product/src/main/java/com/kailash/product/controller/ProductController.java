@@ -23,14 +23,15 @@ public class ProductController {
 
     @PostMapping
     public ResponseEntity<ApiResponse<ProductResponse>> create(@RequestBody ProductRequest req) {
-        Product p = Product.of(req.getSku(), req.getName(), req.getShortDescription(), req.getPrice());
+        Product p = Product.of(req.getSku(), req.getName(), req.getShortDescription(), req.getPrice(),req.getStock());
         Product saved = svc.create(p);
 
         ProductResponse resp = new ProductResponse(
                 saved.getSku(),
                 saved.getName(),
                 saved.getShortDescription(),
-                saved.getPrice()
+                saved.getPrice(),
+                saved.getStock()
         );
 
         return ResponseEntity
@@ -45,7 +46,8 @@ public class ProductController {
                     req.getSku(),
                     req.getName(),
                     req.getShortDescription(),
-                    req.getPrice()
+                    req.getPrice(),
+                    req.getStock()
             );
             svc.create(p);
         });
@@ -61,7 +63,8 @@ public class ProductController {
                             p.getSku(),
                             p.getName(),
                             p.getShortDescription(),
-                            p.getPrice()
+                            p.getPrice(),
+                            p.getStock()
                     );
                     return ResponseEntity.ok(ApiResponse.success(resp));
                 })
@@ -81,7 +84,8 @@ public class ProductController {
                         prod.getSku(),
                         prod.getName(),
                         prod.getShortDescription(),
-                        prod.getPrice()
+                        prod.getPrice(),
+                        prod.getStock()
                 ))
                 .collect(Collectors.toList());
 
@@ -93,14 +97,15 @@ public class ProductController {
             @PathVariable("sku") String sku,
             @RequestBody ProductRequest req
     ) {
-        Product upd = Product.of(sku, req.getName(), req.getShortDescription(), req.getPrice());
+        Product upd = Product.of(sku, req.getName(), req.getShortDescription(), req.getPrice(), req.getStock());
         Product saved = svc.update(sku, upd);
 
         ProductResponse resp = new ProductResponse(
                 saved.getSku(),
                 saved.getName(),
                 saved.getShortDescription(),
-                saved.getPrice()
+                saved.getPrice(),
+                saved.getStock()
         );
 
         return ResponseEntity.ok(ApiResponse.success(resp));

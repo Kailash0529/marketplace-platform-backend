@@ -43,7 +43,7 @@ public class CartServiceImpl implements CartService {
 
     private CartResponse toCartResponse(Cart cart) {
         return new CartResponse(cart.getId(), cart.getMemberId(),
-                cart.getTotalItems(), cart.getTotalPrice());
+                cart.getTotalItems(), cart.getTotalPrice(),cart.getItems());
     }
 
     @Override
@@ -132,6 +132,7 @@ public class CartServiceImpl implements CartService {
 
             ProductResponse productResponse = productBody.getData();
 
+
             CartItem existingItem = cart.getItems().stream()
                     .filter(item -> item.getSku().equals(sku))
                     .findFirst()
@@ -141,7 +142,13 @@ public class CartServiceImpl implements CartService {
 
 
                 int updatedQty = existingItem.getQty() + qty;
+                if(productResponse.getStock()<updatedQty)
+                {
+                    return new ApiResponse<>(false, "Required stock is not available",null);
+
+                }
                 existingItem.setQty(updatedQty);
+
 
 
                 if (updatedQty <= 0) {
@@ -152,6 +159,11 @@ public class CartServiceImpl implements CartService {
                 }
 
             } else {
+                if(productResponse.getStock()<qty)
+                {
+                    return new ApiResponse<>(false, "Required stock is not available",null);
+
+                }
 
                 CartItem newItem = new CartItem();
                 newItem.setSku(sku);
@@ -169,6 +181,7 @@ public class CartServiceImpl implements CartService {
 
             int totalItems = totalItems(cart.getItems());
             cart.setTotalItems(totalItems);
+
 
 
             double totalPrice = cart.getItems().stream()
@@ -198,7 +211,6 @@ public class CartServiceImpl implements CartService {
             cart.setTotalItems(totalItems(cart.getItems()));
             cart.setTotalPrice(totalPrice(cart.getItems()));
             Cart savedCart = cartRepository.save(cart);
-
             return new ApiResponse<>(true, "Item removed successfully", toCartResponse(savedCart));
         } catch (Exception ex) {
             return new ApiResponse<>(false, ex.getMessage(), null);

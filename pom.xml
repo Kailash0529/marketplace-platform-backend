@@ -25,6 +25,8 @@
         <module>product</module>
         <module>cart</module>
         <module>search</module>
+        <module>order</module>
+
     </modules>
 
     <dependencyManagement>

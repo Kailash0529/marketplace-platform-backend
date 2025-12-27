@@ -10,3 +10,12 @@ spring:
             - PreserveHostHeader=true
           metadata:
             preserveRequestBody: true
+
+        - id: order-service
+          uri: http://localhost:8092
+          predicates:
+            - Path=/order/**
+          filters:
+            - PreserveHostHeader=true
+          metadata:
+            preserveRequestBody: true

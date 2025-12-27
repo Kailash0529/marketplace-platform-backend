@@ -58,6 +58,8 @@ public class ProductServiceImpl implements ProductService {
             if (updated.getName() != null) existing.setName(updated.getName());
             if (updated.getShortDescription() != null) existing.setShortDescription(updated.getShortDescription());
             if (updated.getPrice() != null) existing.setPrice(updated.getPrice());
+            if (updated.getStock() != null) existing.setStock(updated.getStock());
+
             Product productToProduce=repo.save(existing);
             productEventProducer.sendProductUpsert(productToProduce);
             return productToProduce;

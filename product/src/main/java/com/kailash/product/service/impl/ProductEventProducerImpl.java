@@ -73,6 +73,7 @@ public class ProductEventProducerImpl implements ProductEventProducer {
         p.setShortDescription(product.getShortDescription());
         p.setPrice(product.getPrice());
         p.setCreatedAt(product.getCreatedAt());
+        p.setStock(product.getStock());
         return p;
     }
 }

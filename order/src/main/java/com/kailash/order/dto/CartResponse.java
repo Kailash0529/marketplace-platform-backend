@@ -1,6 +1,6 @@
-package com.kailash.cart.dto;
+package com.kailash.order.dto;
 
-import com.kailash.cart.entity.CartItem;
+import com.kailash.order.entity.CartItem;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 
@@ -19,4 +19,5 @@ public class CartResponse {
     private int totalItems;
     private Double totalPrice;
     private List<CartItem> items;
+
 }
