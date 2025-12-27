@@ -9,6 +9,7 @@ import com.kailash.order.entity.CartItem;
 import com.kailash.order.entity.Order;
 import com.kailash.order.entity.OrderItem;
 import com.kailash.order.entity.OrderStatus;
+import com.kailash.order.exception.NotFoundException;
 import com.kailash.order.repository.OrderRepository;
 import com.kailash.order.service.OrderService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,4 +52,16 @@ public class OrderServiceImpl implements OrderService {
         return new ApiResponse<>(true,"created",new OrderResponse(savedOrder.getId(),savedOrder.getStatus(),savedOrder.getTotalAmount(),savedOrder.getAddress(),savedOrder.getItems()));
 
     }
+
+    @Override
+    public ApiResponse<OrderResponse> updateOrderStatus(Long orderId, OrderStatus orderStatus)
+    {
+        Order order=orderRepository.findById(orderId).orElseThrow(() -> new NotFoundException("No order found for given order id"));
+        order.setStatus(orderStatus);
+
+        Order savedOrder=orderRepository.save(order);
+        return new ApiResponse<>(true,"Successfully update the order status",new OrderResponse(savedOrder.getId(),savedOrder.getStatus(),savedOrder.getTotalAmount(),savedOrder.getAddress(),savedOrder.getItems()));
+
+    }
+
 }

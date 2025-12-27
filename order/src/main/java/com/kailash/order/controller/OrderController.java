@@ -2,6 +2,7 @@ package com.kailash.order.controller;
 import com.kailash.order.dto.ApiResponse;
 import com.kailash.order.dto.OrderRequest;
 import com.kailash.order.dto.OrderResponse;
+import com.kailash.order.entity.OrderStatus;
 import com.kailash.order.service.OrderService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -20,6 +21,12 @@ public class OrderController {
 
         return orderService.createOrder(userId,req);
 
+    }
+
+    @PatchMapping("/update/status")
+    public ApiResponse<OrderResponse> updateStatus(@RequestParam(name = "orderId") Long orderId,@RequestBody OrderStatus orderStatus)
+    {
+        return orderService.updateOrderStatus(orderId,orderStatus);
     }
 
 }
