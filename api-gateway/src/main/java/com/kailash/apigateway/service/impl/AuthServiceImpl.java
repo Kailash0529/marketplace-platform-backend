@@ -4,6 +4,7 @@ import com.kailash.apigateway.client.MemberClient;
 import com.kailash.apigateway.dto.ApiResponse;
 import com.kailash.apigateway.dto.LoginRequest;
 import com.kailash.apigateway.dto.MemberResponse;
+import com.kailash.apigateway.dto.RegisterRequest;
 import com.kailash.apigateway.entity.RefreshToken;
 import com.kailash.apigateway.exception.NotFoundException;
 import com.kailash.apigateway.repository.RefreshTokenRepository;
@@ -36,12 +37,25 @@ public class AuthServiceImpl implements AuthService {
     private long refreshExpirySec;
 
     @Override
+    public ApiResponse<Map<String, Object>> register(RegisterRequest req) {
+        try {
+            ResponseEntity<ApiResponse<MemberResponse>> response = memberClient.register(req);
+            if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+                return ApiResponse.failure("Registration failed");
+            }
+            return ApiResponse.success(Map.of("message", "User registered successfully"));
+        } catch (Exception ex) {
+            return ApiResponse.failure("Registration failed: " + ex.getMessage());
+        }
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public ApiResponse<Map<String, Object>> login(LoginRequest req) {
         try {
             System.out.println("printing response");
             ResponseEntity<ApiResponse<MemberResponse>> response = memberClient.login(req);
-            System.out.println("printing response"+response);
+            System.out.println("printing response" + response);
             if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
                 return ApiResponse.failure("Invalid credentials");
             }

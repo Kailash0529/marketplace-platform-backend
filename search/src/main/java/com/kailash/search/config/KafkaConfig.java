@@ -16,13 +16,16 @@ import java.util.Map;
 @Configuration
 public class KafkaConfig {
 
+    @org.springframework.beans.factory.annotation.Value("${spring.kafka.bootstrap-servers:localhost:9092}")
+    private String bootstrapServers;
+
     @Bean
     public ConsumerFactory<String, ProductEvent> consumerFactory() {
         JsonDeserializer<ProductEvent> deserializer = new JsonDeserializer<>(ProductEvent.class, false);
         deserializer.addTrustedPackages("com.kailash.search.dto", "com.kailash.product.dto", "*");
 
         Map<String, Object> props = new HashMap<>();
-        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         props.put(ConsumerConfig.GROUP_ID_CONFIG, "product-indexer-group");
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
@@ -34,15 +37,12 @@ public class KafkaConfig {
     public ConcurrentKafkaListenerContainerFactory<String, ProductEvent> kafkaListenerContainerFactory(
             ConsumerFactory<String, ProductEvent> consumerFactory) {
 
-        ConcurrentKafkaListenerContainerFactory<String, ProductEvent> factory =
-                new ConcurrentKafkaListenerContainerFactory<>();
+        ConcurrentKafkaListenerContainerFactory<String, ProductEvent> factory = new ConcurrentKafkaListenerContainerFactory<>();
 
         factory.setConsumerFactory(consumerFactory);
 
-
         factory.getContainerProperties().setAckMode(
-                org.springframework.kafka.listener.ContainerProperties.AckMode.MANUAL
-        );
+                org.springframework.kafka.listener.ContainerProperties.AckMode.MANUAL);
 
         return factory;
     }

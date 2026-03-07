@@ -3,7 +3,7 @@ spring:
     gateway:
       routes:
         - id: cart-service
-          uri: http://localhost:8089
+          uri: ${CART_SERVICE_URL:http://localhost:8089}
           predicates:
             - Path=/cart/**
           filters:
@@ -12,9 +12,36 @@ spring:
             preserveRequestBody: true
 
         - id: order-service
-          uri: http://localhost:8092
+          uri: ${ORDER_SERVICE_URL:http://localhost:8092}
           predicates:
             - Path=/order/**
+          filters:
+            - PreserveHostHeader=true
+          metadata:
+            preserveRequestBody: true
+
+        - id: member-service
+          uri: ${MEMBER_SERVICE_URL:http://localhost:8085}
+          predicates:
+            - Path=/member/**
+          filters:
+            - PreserveHostHeader=true
+          metadata:
+            preserveRequestBody: true
+
+        - id: product-service
+          uri: ${PRODUCT_SERVICE_URL:http://localhost:8086}
+          predicates:
+            - Path=/products/**
+          filters:
+            - PreserveHostHeader=true
+          metadata:
+            preserveRequestBody: true
+
+        - id: search-service
+          uri: ${SEARCH_SERVICE_URL:http://localhost:8091}
+          predicates:
+            - Path=/search/**
           filters:
             - PreserveHostHeader=true
           metadata:

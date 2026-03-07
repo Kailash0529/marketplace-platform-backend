@@ -1,0 +1,299 @@
+services:
+  # ==========================================
+  # Infrastructure: Databases & Messaging
+  # ==========================================
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: marketplace
+    restart: on-failure
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  schema-migrator-sync:
+    image: signoz/signoz-schema-migrator:v0.129.12
+    container_name: schema-migrator-sync
+    command:
+      - sync
+      - --dsn=tcp://clickhouse:9000
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    restart: on-failure
+
+  schema-migrator-async:
+    image: signoz/signoz-schema-migrator:v0.129.12
+    container_name: schema-migrator-async
+    command:
+      - async
+      - --dsn=tcp://clickhouse:9000
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      schema-migrator-sync:
+        condition: service_completed_successfully
+    restart: on-failure
+
+  mongo:
+    image: mongo:6.0
+    container_name: mongo
+    restart: on-failure
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  redis:
+    image: redis:alpine
+    container_name: redis
+    restart: on-failure
+    ports:
+      - "6379:6379"
+
+  elasticsearch:
+    image: elasticsearch:8.11.1
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    restart: on-failure
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+
+  zookeeper:
+    image: signoz/zookeeper:3.7.1
+    container_name: zookeeper
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+      - ZOOKEEPER_CLIENT_PORT=2181
+      - ZOOKEEPER_TICK_TIME=2000
+    restart: on-failure
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    restart: on-failure
+    ports:
+      - "9092:9092"
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  # ==========================================
+  # Microservices
+  # ==========================================
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    restart: on-failure
+    ports:
+      - "8090:8090"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/marketplace
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=password
+      - CART_SERVICE_URL=http://cart-service:8089
+      - ORDER_SERVICE_URL=http://order-service:8092
+      - MEMBER_SERVICE_URL=http://member-service:8085
+      - PRODUCT_SERVICE_URL=http://product-service:8086
+      - SEARCH_SERVICE_URL=http://search-service:8091
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_RESOURCE_ATTRIBUTES=service.name=api-gateway
+      - OTEL_METRICS_EXPORTER=none
+      - OTEL_LOGS_EXPORTER=none
+    depends_on:
+      postgres:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+
+  member-service:
+    build: ./member
+    container_name: member-service
+    restart: on-failure
+    ports:
+      - "8085:8085"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/marketplace
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=password
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_RESOURCE_ATTRIBUTES=service.name=member-service
+      - OTEL_METRICS_EXPORTER=none
+      - OTEL_LOGS_EXPORTER=none
+    depends_on:
+      postgres:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+
+  product-service:
+    build: ./product
+    container_name: product-service
+    restart: on-failure
+    ports:
+      - "8086:8086"
+    environment:
+      - SPRING_DATA_MONGODB_URI=mongodb://mongo:27017/marketplace
+      - SPRING_ELASTICSEARCH_URIS=http://elasticsearch:9200
+      - ELASTICSEARCH_URIS=http://elasticsearch:9200
+      - SPRING_DATA_REDIS_HOST=redis
+      - REDIS_HOST=redis
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_RESOURCE_ATTRIBUTES=service.name=product-service
+      - OTEL_METRICS_EXPORTER=none
+      - OTEL_LOGS_EXPORTER=none
+    depends_on:
+      - mongo
+      - elasticsearch
+      - redis
+      - kafka
+      - otel-collector
+
+  cart-service:
+    build: ./cart
+    container_name: cart-service
+    restart: on-failure
+    ports:
+      - "8089:8089"
+    environment:
+      - SPRING_DATA_MONGODB_URI=mongodb://mongo:27017/marketplace
+      - SPRING_CLOUD_OPENFEIGN_CLIENT_CONFIG_PRODUCT_URL=http://product-service:8086
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_RESOURCE_ATTRIBUTES=service.name=cart-service
+      - OTEL_METRICS_EXPORTER=none
+      - OTEL_LOGS_EXPORTER=none
+    depends_on:
+      - mongo
+      - otel-collector
+
+  order-service:
+    build: ./order
+    container_name: order-service
+    restart: on-failure
+    ports:
+      - "8092:8092"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/marketplace
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=password
+      - SPRING_CLOUD_OPENFEIGN_CLIENT_CONFIG_CART_URL=http://cart-service:8089
+      - SPRING_CLOUD_OPENFEIGN_CLIENT_CONFIG_PRODUCT_SERVICE_URL=http://product-service:8086
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_RESOURCE_ATTRIBUTES=service.name=order-service
+      - OTEL_METRICS_EXPORTER=none
+      - OTEL_LOGS_EXPORTER=none
+    depends_on:
+      postgres:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+
+  search-service:
+    build: ./search
+    container_name: search-service
+    restart: on-failure
+    ports:
+      - "8091:8091"
+    environment:
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - SPRING_ELASTICSEARCH_URIS=http://elasticsearch:9200
+      - ELASTICSEARCH_URIS=http://elasticsearch:9200
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_RESOURCE_ATTRIBUTES=service.name=search-service
+      - OTEL_METRICS_EXPORTER=none
+      - OTEL_LOGS_EXPORTER=none
+    depends_on:
+      - kafka
+      - elasticsearch
+      - otel-collector
+
+  # ==========================================
+  # SigNoz Observability
+  # ==========================================
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.1.2-alpine
+    container_name: clickhouse
+    volumes:
+      - ./signoz/clickhouse-config.d-custom.xml:/etc/clickhouse-server/config.d/99-custom.xml
+      - ./signoz/clickhouse-users.xml:/etc/clickhouse-server/users.xml
+      - clickhouse_data:/var/lib/clickhouse
+    restart: on-failure
+    depends_on:
+      - zookeeper
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "localhost:8123/ping" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  signoz:
+    image: signoz/signoz:v0.108.0
+    container_name: signoz
+    command: [ "-config=/etc/signoz/config.yaml" ]
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./signoz/otel-collector-config.yaml:/etc/signoz/config.yaml
+      - signoz_db:/var/lib/signoz/
+    environment:
+      - SIGNOZ_TELEMETRYSTORE_CLICKHOUSE_DSN=tcp://clickhouse:9000
+      - SIGNOZ_SQLSTORE_SQLITE_PATH=/var/lib/signoz/signoz.db
+      - DASHBOARDS_PATH=/root/config/dashboards
+      - STORAGE=clickhouse
+      - GODEBUG=netdns=go
+      - TELEMETRY_ENABLED=true
+      - DEPLOYMENT_TYPE=docker-standalone-amd
+      - DOT_METRICS_ENABLED=true
+    restart: on-failure
+    depends_on:
+      - clickhouse
+      - zookeeper
+
+  otel-collector:
+    image: signoz/signoz-otel-collector:v0.129.12
+    container_name: otel-collector
+    command: [ "--config=/etc/otel-collector-config.yaml" ]
+    volumes:
+      - ./signoz/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    environment:
+      - OTEL_RESOURCE_ATTRIBUTES=host.name=otel-collector
+      - LOW_CARDINAL_EXCEPTION_GROUPING=false
+    restart: on-failure
+    depends_on:
+      - clickhouse
+      - zookeeper
+
+volumes:
+  postgres_data:
+  mongo_data:
+  es_data:
+  clickhouse_data:
+  signoz_db:

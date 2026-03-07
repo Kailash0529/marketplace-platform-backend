@@ -2,6 +2,7 @@ package com.kailash.apigateway.controller;
 
 import com.kailash.apigateway.dto.ApiResponse;
 import com.kailash.apigateway.dto.LoginRequest;
+import com.kailash.apigateway.dto.RegisterRequest;
 import com.kailash.apigateway.service.AuthService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,6 +17,12 @@ public class AuthController {
 
     public AuthController(AuthService svc) {
         this.svc = svc;
+    }
+
+    @PostMapping("/register")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> register(@RequestBody RegisterRequest req) {
+        ApiResponse<Map<String, Object>> data = svc.register(req);
+        return ResponseEntity.ok(data);
     }
 
     @PostMapping("/login")

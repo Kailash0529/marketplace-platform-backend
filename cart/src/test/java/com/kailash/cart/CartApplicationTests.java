@@ -44,7 +44,7 @@ class CartApplicationTests {
 	}
 
 	private ProductResponse createMockProduct(String sku, String name, double price) {
-		return new ProductResponse(sku, name, "Short description", price);
+		return new ProductResponse(sku, name, "Short description", price,0);
 	}
 
 	// -------------------------------------------------------------------------
