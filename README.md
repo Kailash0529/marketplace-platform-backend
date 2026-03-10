@@ -12,8 +12,21 @@ This project is a fully containerized microservices platform built with **Spring
 | **Order Service** | `8092` | Manages orders (PostgreSQL, Feign to Cart/Product). |
 | **Member Service** | `8085` | User management & Auth (PostgreSQL). |
 | **Search Service** | `8091` | Search indexing (Kafka Consumer -> Elasticsearch). |
-| **SigNoz (Unified)** | `8080` | Observability Dashboard (APM, Traces, Metrics). |
 | **OTel Collector** | `4317` | Receives telemetry data from all microservices. |
+| **Search Service** | `8091` | Search indexing (Kafka Consumer -> Elasticsearch). |
+
+## 📖 API Documentation (Swagger)
+
+Each service exposes its own Swagger UI for API exploration and testing.
+
+| Service | Swagger UI Link |
+| :--- | :--- |
+| **API Gateway** | [http://localhost:8090/swagger-ui/index.html](http://localhost:8090/swagger-ui/index.html) |
+| **Member Service** | [http://localhost:8085/swagger-ui/index.html](http://localhost:8085/swagger-ui/index.html) |
+| **Product Service** | [http://localhost:8086/swagger-ui/index.html](http://localhost:8086/swagger-ui/index.html) |
+| **Cart Service** | [http://localhost:8089/swagger-ui/index.html](http://localhost:8089/swagger-ui/index.html) |
+| **Order Service** | [http://localhost:8092/swagger-ui/index.html](http://localhost:8092/swagger-ui/index.html) |
+| **Search Service** | [http://localhost:8091/swagger-ui/index.html](http://localhost:8091/swagger-ui/index.html) |
 
 ## 🛠️ Prerequisites
 
