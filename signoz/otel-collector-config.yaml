@@ -52,17 +52,17 @@ extensions:
 
 exporters:
   clickhousetraces:
-    datasource: tcp://clickhouse:9000/signoz_traces
+    datasource: tcp://default:clickhouse@clickhouse:9000/signoz_traces
     low_cardinal_exception_grouping: false
     use_new_schema: true
   signozclickhousemetrics:
-    dsn: tcp://clickhouse:9000/signoz_metrics
+    dsn: tcp://default:clickhouse@clickhouse:9000/signoz_metrics
   clickhouselogsexporter:
-    dsn: tcp://clickhouse:9000/signoz_logs
+    dsn: tcp://default:clickhouse@clickhouse:9000/signoz_logs
     timeout: 10s
     use_new_schema: true
   signozclickhousemeter:
-    dsn: tcp://clickhouse:9000/signoz_meter
+    dsn: tcp://default:clickhouse@clickhouse:9000/signoz_meter
     timeout: 45s
     sending_queue:
       enabled: false
@@ -78,12 +78,12 @@ service:
     traces:
       receivers: [otlp]
       processors: [signozspanmetrics/delta, batch]
-      exporters: [clickhousetraces, signozmeter]
+      exporters: [clickhousetraces]
     metrics:
       receivers: [otlp]
       processors: [batch]
-      exporters: [signozclickhousemetrics, signozmeter]
+      exporters: [signozclickhousemetrics]
     logs:
       receivers: [otlp]
       processors: [batch]
-      exporters: [clickhouselogsexporter, signozmeter]
+      exporters: [clickhouselogsexporter]

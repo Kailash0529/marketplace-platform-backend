@@ -26,24 +26,26 @@ services:
     container_name: schema-migrator-sync
     command:
       - sync
-      - --dsn=tcp://clickhouse:9000
+      - --dsn=tcp://default:clickhouse@clickhouse:9000
+      - --cluster-name=default
     depends_on:
       clickhouse:
         condition: service_healthy
-    restart: on-failure
+    restart: "no"
 
   schema-migrator-async:
     image: signoz/signoz-schema-migrator:v0.129.12
     container_name: schema-migrator-async
     command:
       - async
-      - --dsn=tcp://clickhouse:9000
+      - --dsn=tcp://default:clickhouse@clickhouse:9000
+      - --cluster-name=default
     depends_on:
       clickhouse:
         condition: service_healthy
       schema-migrator-sync:
         condition: service_completed_successfully
-    restart: on-failure
+    restart: "no"
 
   mongo:
     image: mongo:6.0
@@ -84,6 +86,11 @@ services:
     restart: on-failure
     ports:
       - "2181:2181"
+    healthcheck:
+      test: [ "CMD", "nc", "-z", "localhost", "2181" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
@@ -92,7 +99,8 @@ services:
     ports:
       - "9092:9092"
     depends_on:
-      - zookeeper
+      zookeeper:
+        condition: service_healthy
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -121,6 +129,7 @@ services:
       - PRODUCT_SERVICE_URL=http://product-service:8086
       - SEARCH_SERVICE_URL=http://search-service:8091
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
       - OTEL_RESOURCE_ATTRIBUTES=service.name=api-gateway
       - OTEL_METRICS_EXPORTER=none
       - OTEL_LOGS_EXPORTER=none
@@ -141,6 +150,7 @@ services:
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=password
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
       - OTEL_RESOURCE_ATTRIBUTES=service.name=member-service
       - OTEL_METRICS_EXPORTER=none
       - OTEL_LOGS_EXPORTER=none
@@ -165,6 +175,7 @@ services:
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
       - OTEL_RESOURCE_ATTRIBUTES=service.name=product-service
       - OTEL_METRICS_EXPORTER=none
       - OTEL_LOGS_EXPORTER=none
@@ -185,6 +196,7 @@ services:
       - SPRING_DATA_MONGODB_URI=mongodb://mongo:27017/marketplace
       - SPRING_CLOUD_OPENFEIGN_CLIENT_CONFIG_PRODUCT_URL=http://product-service:8086
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
       - OTEL_RESOURCE_ATTRIBUTES=service.name=cart-service
       - OTEL_METRICS_EXPORTER=none
       - OTEL_LOGS_EXPORTER=none
@@ -205,6 +217,7 @@ services:
       - SPRING_CLOUD_OPENFEIGN_CLIENT_CONFIG_CART_URL=http://cart-service:8089
       - SPRING_CLOUD_OPENFEIGN_CLIENT_CONFIG_PRODUCT_SERVICE_URL=http://product-service:8086
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
       - OTEL_RESOURCE_ATTRIBUTES=service.name=order-service
       - OTEL_METRICS_EXPORTER=none
       - OTEL_LOGS_EXPORTER=none
@@ -226,6 +239,7 @@ services:
       - SPRING_ELASTICSEARCH_URIS=http://elasticsearch:9200
       - ELASTICSEARCH_URIS=http://elasticsearch:9200
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
       - OTEL_RESOURCE_ATTRIBUTES=service.name=search-service
       - OTEL_METRICS_EXPORTER=none
       - OTEL_LOGS_EXPORTER=none
@@ -239,20 +253,23 @@ services:
   # ==========================================
 
   clickhouse:
-    image: clickhouse/clickhouse-server:24.1.2-alpine
+    image: clickhouse/clickhouse-server:25.5.6-alpine
     container_name: clickhouse
     volumes:
       - ./signoz/clickhouse-config.d-custom.xml:/etc/clickhouse-server/config.d/99-custom.xml
       - ./signoz/clickhouse-users.xml:/etc/clickhouse-server/users.xml
+      - ./signoz/clickhouse-users.d-default-password.xml:/etc/clickhouse-server/users.d/99-default-password.xml
       - clickhouse_data:/var/lib/clickhouse
     restart: on-failure
     depends_on:
-      - zookeeper
+      zookeeper:
+        condition: service_healthy
     healthcheck:
-      test: [ "CMD", "wget", "--spider", "-q", "localhost:8123/ping" ]
-      interval: 30s
+      test: [ "CMD-SHELL", "wget --spider -q http://127.0.0.1:8123/ping || exit 1" ]
+      interval: 10s
       timeout: 5s
-      retries: 3
+      retries: 15
+      start_period: 30s
 
   signoz:
     image: signoz/signoz:v0.108.0
@@ -264,7 +281,7 @@ services:
       - ./signoz/otel-collector-config.yaml:/etc/signoz/config.yaml
       - signoz_db:/var/lib/signoz/
     environment:
-      - SIGNOZ_TELEMETRYSTORE_CLICKHOUSE_DSN=tcp://clickhouse:9000
+      - SIGNOZ_TELEMETRYSTORE_CLICKHOUSE_DSN=tcp://default:clickhouse@clickhouse:9000
       - SIGNOZ_SQLSTORE_SQLITE_PATH=/var/lib/signoz/signoz.db
       - DASHBOARDS_PATH=/root/config/dashboards
       - STORAGE=clickhouse
